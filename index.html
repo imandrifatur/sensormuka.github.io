@@ -3,139 +3,151 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Face Recognition with Camera</title>
+    <title>Simulasi PLC Sederhana dengan HTML, CSS, dan JavaScript</title>
     <style>
-        /* Gaya dasar untuk video dan kanvas */
-        #video {
-            display: block;
-            margin: 0 auto;
-            width: 640px;
-            height: 480px;
-            background-color: black;
-        }
-        
-        #canvas {
-            position: absolute;
-            top: 0;
-            left: 0;
-            display: block;
-            margin: 0 auto;
-        }
-        
-        .centered {
+        /* Gaya untuk tampilan lampu */
+        .lamp-container {
             display: flex;
             justify-content: center;
-            align-items: center;
-            flex-direction: column;
-            margin-top: 20px;
+            gap: 20px;
+            margin: 20px;
         }
-        
-        /* Gaya untuk tombol */
-        button {
-            margin: 10px;
+
+        .lamp {
+            width: 80px;
+            height: 80px;
+            background-color: grey;
+            border-radius: 50%;
+            transition: background-color 0.3s ease, box-shadow 0.3s ease;
+        }
+
+        .lamp.on {
+            background-color: yellow;
+            box-shadow: 0 0 15px yellow;
+        }
+
+        .lamp.off {
+            background-color: grey;
+            box-shadow: none;
+        }
+
+        /* Tombol */
+        .button {
+            display: block;
+            width: 150px;
+            margin: 10px auto;
             padding: 10px;
             background-color: #007bff;
             color: white;
+            text-align: center;
             border: none;
             border-radius: 5px;
             cursor: pointer;
+            transition: background-color 0.3s ease;
         }
 
-        button:hover {
+        /* Hover pada tombol */
+        .button:hover {
             background-color: #0056b3;
-        }
-
-        /* Tampilkan nama di atas wajah yang dikenali */
-        .label {
-            background-color: rgba(255, 255, 255, 0.7);
-            border-radius: 5px;
-            padding: 2px 5px;
-            position: absolute;
-            font-size: 12px;
-            color: black;
         }
     </style>
 </head>
 <body>
 
-<div class="centered">
-    <video id="video" autoplay muted></video>
-    <canvas id="canvas" width="640" height="480"></canvas>
-    <button onclick="startRecognition()">Start Face Recognition</button>
-</div>
+    <!-- Kontainer untuk Lampu -->
+    <div class="lamp-container">
+        <div id="lamp1" class="lamp off"></div>
+        <div id="lamp2" class="lamp off"></div>
+        <div id="lamp3" class="lamp off"></div>
+    </div>
 
-<!-- Memuat pustaka face-api.js dari CDN -->
-<script defer src="https://cdn.jsdelivr.net/npm/face-api.js"></script>
-<script>
-    const video = document.getElementById('video');
-    const canvas = document.getElementById('canvas');
-    const context = canvas.getContext('2d');
-    let labeledFaceDescriptors = [];
-    let faceMatcher;
+    <!-- Tombol ON/OFF -->
+    <button id="toggleAllButton" class="button">ON All</button>
+    <!-- Tombol Nyala Satu -->
+    <button id="toggleSingleButton" class="button">Nyala Lampu 1</button>
+    <!-- Tombol Relay/Kedip -->
+    <button id="toggleBlinkButton" class="button">Kedip Lampu 2</button>
 
-    // Fungsi untuk memulai akses kamera
-    async function startCamera() {
-        const stream = await navigator.mediaDevices.getUserMedia({ video: {} });
-        video.srcObject = stream;
-    }
+    <script>
+        // Ambil elemen lampu dan tombol
+        const lamp1 = document.getElementById('lamp1');
+        const lamp2 = document.getElementById('lamp2');
+        const lamp3 = document.getElementById('lamp3');
+        const toggleAllButton = document.getElementById('toggleAllButton');
+        const toggleSingleButton = document.getElementById('toggleSingleButton');
+        const toggleBlinkButton = document.getElementById('toggleBlinkButton');
 
-    // Memuat model face-api.js
-    async function loadModels() {
-        await faceapi.nets.tinyFaceDetector.loadFromUri('/models');
-        await faceapi.nets.faceLandmark68Net.loadFromUri('/models');
-        await faceapi.nets.faceRecognitionNet.loadFromUri('/models');
-    }
+        // Status sistem
+        let isAllOn = false;
+        let isSingleOn = false;
+        let isBlinking = false;
+        let blinkInterval;
 
-    // Menambahkan wajah yang dikenali
-    async function loadLabeledImages() {
-        const labels = ['Person1', 'Person2']; // Ganti dengan nama wajah yang dikenali
-        for (const label of labels) {
-            const descriptions = [];
-            for (let i = 1; i <= 2; i++) { // Mengambil dua gambar untuk setiap orang
-                const img = await faceapi.fetchImage(`./images/${label}/${i}.jpg`); // Pastikan gambar ada
-                const detections = await faceapi.detectSingleFace(img).withFaceLandmarks().withFaceDescriptor();
-                descriptions.push(detections.descriptor);
-            }
-            labeledFaceDescriptors.push(new faceapi.LabeledFaceDescriptors(label, descriptions));
+        // Fungsi menyalakan semua lampu
+        function turnOnAllLamps() {
+            lamp1.classList.add('on');
+            lamp2.classList.add('on');
+            lamp3.classList.add('on');
+            lamp1.classList.remove('off');
+            lamp2.classList.remove('off');
+            lamp3.classList.remove('off');
         }
-        faceMatcher = new faceapi.FaceMatcher(labeledFaceDescriptors, 0.6);
-    }
 
-    // Mulai pengenalan wajah
-    async function startRecognition() {
-        await loadLabeledImages();
-        const displaySize = { width: video.width, height: video.height };
-        faceapi.matchDimensions(canvas, displaySize);
+        // Fungsi mematikan semua lampu
+        function turnOffAllLamps() {
+            lamp1.classList.remove('on'); lamp1.classList.add('off');
+            lamp2.classList.remove('on'); lamp2.classList.add('off');
+            lamp3.classList.remove('on'); lamp3.classList.add('off');
+        }
 
-        setInterval(async () => {
-            const detections = await faceapi.detectAllFaces(video, new faceapi.TinyFaceDetectorOptions())
-                .withFaceLandmarks()
-                .withFaceDescriptors();
-            const resizedDetections = faceapi.resizeResults(detections, displaySize);
-            context.clearRect(0, 0, canvas.width, canvas.height);
-            const results = resizedDetections.map(d => faceMatcher.findBestMatch(d.descriptor));
-            results.forEach((result, i) => {
-                const box = resizedDetections[i].detection.box;
-                const label = result.toString();
-                context.drawImage(video, box.x, box.y, box.width, box.height);
-                context.fillStyle = 'red';
-                context.strokeStyle = 'red';
-                context.lineWidth = 2;
-                context.strokeRect(box.x, box.y, box.width, box.height);
-                const labelBox = new faceapi.draw.DrawTextField(
-                    [label],
-                    { x: box.x, y: box.y - 5 }
-                );
-                labelBox.draw(canvas);
-            });
-        }, 100); // jeda 100ms
-    }
+        // Fungsi toggle semua lampu
+        function toggleAllLamps() {
+            isAllOn = !isAllOn;
+            if (isAllOn) {
+                toggleAllButton.textContent = 'OFF All';
+                turnOnAllLamps();
+            } else {
+                toggleAllButton.textContent = 'ON All';
+                turnOffAllLamps();
+            }
+        }
 
-    // Inisialisasi kamera dan model saat halaman dimuat
-    window.addEventListener('load', async () => {
-        await loadModels();
-        await startCamera();
-    });
-</script>
+        // Fungsi toggle lampu satu
+        function toggleSingleLamp() {
+            isSingleOn = !isSingleOn;
+            if (isSingleOn) {
+                lamp1.classList.add('on');
+                lamp1.classList.remove('off');
+                toggleSingleButton.textContent = 'Matikan Lampu 1';
+            } else {
+                lamp1.classList.remove('on');
+                lamp1.classList.add('off');
+                toggleSingleButton.textContent = 'Nyala Lampu 1';
+            }
+        }
+
+        // Fungsi untuk memulai atau menghentikan kedip lampu 2
+        function toggleBlinkLamp() {
+            isBlinking = !isBlinking;
+            if (isBlinking) {
+                toggleBlinkButton.textContent = 'Matikan Kedip';
+                blinkInterval = setInterval(() => {
+                    lamp2.classList.toggle('on');
+                    lamp2.classList.toggle('off');
+                }, 500); // interval kedip 500 ms
+            } else {
+                toggleBlinkButton.textContent = 'Kedip Lampu 2';
+                clearInterval(blinkInterval);
+                lamp2.classList.remove('on');
+                lamp2.classList.add('off');
+            }
+        }
+
+        // Event listeners untuk tombol
+        toggleAllButton.addEventListener('click', toggleAllLamps);
+        toggleSingleButton.addEventListener('click', toggleSingleLamp);
+        toggleBlinkButton.addEventListener('click', toggleBlinkLamp);
+    </script>
+
 </body>
 </html>
