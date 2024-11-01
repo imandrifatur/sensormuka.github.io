@@ -44,6 +44,16 @@
         button:hover {
             background-color: #0056b3;
         }
+
+        /* Tampilkan nama di atas wajah yang dikenali */
+        .label {
+            background-color: rgba(255, 255, 255, 0.7);
+            border-radius: 5px;
+            padding: 2px 5px;
+            position: absolute;
+            font-size: 12px;
+            color: black;
+        }
     </style>
 </head>
 <body>
@@ -51,7 +61,7 @@
 <div class="centered">
     <video id="video" autoplay muted></video>
     <canvas id="canvas" width="640" height="480"></canvas>
-    <button onclick="startDetection()">Start Face Detection</button>
+    <button onclick="startRecognition()">Start Face Recognition</button>
 </div>
 
 <!-- Memuat pustaka face-api.js dari CDN -->
@@ -61,7 +71,8 @@
     const canvas = document.getElementById('canvas');
     const context = canvas.getContext('2d');
     let labeledFaceDescriptors = [];
-    
+    let faceMatcher;
+
     // Fungsi untuk memulai akses kamera
     async function startCamera() {
         const stream = await navigator.mediaDevices.getUserMedia({ video: {} });
@@ -76,39 +87,47 @@
     }
 
     // Menambahkan wajah yang dikenali
-    async function addFace(label) {
-        const descriptions = await getFaceDescriptor();
-        labeledFaceDescriptors.push(new faceapi.LabeledFaceDescriptors(label, descriptions));
+    async function loadLabeledImages() {
+        const labels = ['Person1', 'Person2']; // Ganti dengan nama wajah yang dikenali
+        for (const label of labels) {
+            const descriptions = [];
+            for (let i = 1; i <= 2; i++) { // Mengambil dua gambar untuk setiap orang
+                const img = await faceapi.fetchImage(`./images/${label}/${i}.jpg`); // Pastikan gambar ada
+                const detections = await faceapi.detectSingleFace(img).withFaceLandmarks().withFaceDescriptor();
+                descriptions.push(detections.descriptor);
+            }
+            labeledFaceDescriptors.push(new faceapi.LabeledFaceDescriptors(label, descriptions));
+        }
+        faceMatcher = new faceapi.FaceMatcher(labeledFaceDescriptors, 0.6);
     }
 
-    // Mendapatkan deskriptor wajah
-    async function getFaceDescriptor() {
-        const detections = await faceapi.detectAllFaces(video, new faceapi.TinyFaceDetectorOptions()).withFaceLandmarks().withFaceDescriptors();
-        return detections.map(d => d.descriptor);
-    }
-
-    // Mulai deteksi wajah dan pengenalan
-    async function startDetection() {
+    // Mulai pengenalan wajah
+    async function startRecognition() {
+        await loadLabeledImages();
         const displaySize = { width: video.width, height: video.height };
         faceapi.matchDimensions(canvas, displaySize);
 
         setInterval(async () => {
-            const detections = await faceapi.detectAllFaces(video, new faceapi.TinyFaceDetectorOptions()).withFaceLandmarks().withFaceDescriptors();
+            const detections = await faceapi.detectAllFaces(video, new faceapi.TinyFaceDetectorOptions())
+                .withFaceLandmarks()
+                .withFaceDescriptors();
             const resizedDetections = faceapi.resizeResults(detections, displaySize);
             context.clearRect(0, 0, canvas.width, canvas.height);
-            faceapi.draw.drawDetections(canvas, resizedDetections);
-            
-            // Pengenalan wajah
-            if (labeledFaceDescriptors.length > 0) {
-                const faceMatcher = new faceapi.FaceMatcher(labeledFaceDescriptors, 0.6);
-                const results = resizedDetections.map(d => faceMatcher.findBestMatch(d.descriptor));
-                results.forEach((result, i) => {
-                    const { x, y, width, height } = resizedDetections[i].detection.box;
-                    context.strokeStyle = 'green';
-                    context.strokeRect(x, y, width, height);
-                    context.fillText(result.toString(), x, y > 10 ? y - 5 : 10);
-                });
-            }
+            const results = resizedDetections.map(d => faceMatcher.findBestMatch(d.descriptor));
+            results.forEach((result, i) => {
+                const box = resizedDetections[i].detection.box;
+                const label = result.toString();
+                context.drawImage(video, box.x, box.y, box.width, box.height);
+                context.fillStyle = 'red';
+                context.strokeStyle = 'red';
+                context.lineWidth = 2;
+                context.strokeRect(box.x, box.y, box.width, box.height);
+                const labelBox = new faceapi.draw.DrawTextField(
+                    [label],
+                    { x: box.x, y: box.y - 5 }
+                );
+                labelBox.draw(canvas);
+            });
         }, 100); // jeda 100ms
     }
 
@@ -116,9 +135,6 @@
     window.addEventListener('load', async () => {
         await loadModels();
         await startCamera();
-
-        // Tambahkan wajah yang ingin dikenali di sini
-        await addFace('Person1'); // Ganti 'Person1' dengan nama atau label yang sesuai
     });
 </script>
 </body>
