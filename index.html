@@ -22,9 +22,14 @@
         }
 
         .lamp.on {
-            background-color: yellow;
             box-shadow: 0 0 15px yellow;
         }
+
+        .lamp1.on { background-color: yellow; }
+        .lamp2.on { background-color: red; }
+        .lamp3.on { background-color: blue; }
+        .lamp4.on { background-color: green; }
+        .lamp5.on { background-color: purple; }
 
         .lamp.off {
             background-color: grey;
@@ -56,9 +61,11 @@
 
     <!-- Kontainer untuk Lampu -->
     <div class="lamp-container">
-        <div id="lamp1" class="lamp off"></div>
-        <div id="lamp2" class="lamp off"></div>
-        <div id="lamp3" class="lamp off"></div>
+        <div id="lamp1" class="lamp lamp1 off"></div>
+        <div id="lamp2" class="lamp lamp2 off"></div>
+        <div id="lamp3" class="lamp lamp3 off"></div>
+        <div id="lamp4" class="lamp lamp4 off"></div>
+        <div id="lamp5" class="lamp lamp5 off"></div>
     </div>
 
     <!-- Tombol ON/OFF -->
@@ -73,6 +80,8 @@
         const lamp1 = document.getElementById('lamp1');
         const lamp2 = document.getElementById('lamp2');
         const lamp3 = document.getElementById('lamp3');
+        const lamp4 = document.getElementById('lamp4');
+        const lamp5 = document.getElementById('lamp5');
         const toggleAllButton = document.getElementById('toggleAllButton');
         const toggleSingleButton = document.getElementById('toggleSingleButton');
         const toggleBlinkButton = document.getElementById('toggleBlinkButton');
@@ -88,9 +97,13 @@
             lamp1.classList.add('on');
             lamp2.classList.add('on');
             lamp3.classList.add('on');
+            lamp4.classList.add('on');
+            lamp5.classList.add('on');
             lamp1.classList.remove('off');
             lamp2.classList.remove('off');
             lamp3.classList.remove('off');
+            lamp4.classList.remove('off');
+            lamp5.classList.remove('off');
         }
 
         // Fungsi mematikan semua lampu
@@ -98,6 +111,8 @@
             lamp1.classList.remove('on'); lamp1.classList.add('off');
             lamp2.classList.remove('on'); lamp2.classList.add('off');
             lamp3.classList.remove('on'); lamp3.classList.add('off');
+            lamp4.classList.remove('on'); lamp4.classList.add('off');
+            lamp5.classList.remove('on'); lamp5.classList.add('off');
         }
 
         // Fungsi toggle semua lampu
