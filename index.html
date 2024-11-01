@@ -3,166 +3,92 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Simulasi PLC Sederhana dengan HTML, CSS, dan JavaScript</title>
+    <title>Pendeteksi Objek dengan Kamera</title>
     <style>
-        /* Gaya untuk tampilan lampu */
-        .lamp-container {
+        body {
             display: flex;
             justify-content: center;
-            gap: 20px;
-            margin: 20px;
+            align-items: center;
+            flex-direction: column;
         }
-
-        .lamp {
-            width: 80px;
-            height: 80px;
-            background-color: grey;
-            border-radius: 50%;
-            transition: background-color 0.3s ease, box-shadow 0.3s ease;
+        video {
+            width: 640px;
+            height: 480px;
+            border: 2px solid #ccc;
         }
-
-        .lamp.on {
-            box-shadow: 0 0 15px yellow;
-        }
-
-        .lamp1.on { background-color: yellow; }
-        .lamp2.on { background-color: red; }
-        .lamp3.on { background-color: blue; }
-        .lamp4.on { background-color: green; }
-        .lamp5.on { background-color: purple; }
-
-        .lamp.off {
-            background-color: grey;
-            box-shadow: none;
-        }
-
-        /* Tombol */
-        .button {
-            display: block;
-            width: 150px;
-            margin: 10px auto;
-            padding: 10px;
-            background-color: #007bff;
-            color: white;
-            text-align: center;
-            border: none;
-            border-radius: 5px;
-            cursor: pointer;
-            transition: background-color 0.3s ease;
-        }
-
-        /* Hover pada tombol */
-        .button:hover {
-            background-color: #0056b3;
+        canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
         }
     </style>
 </head>
 <body>
 
-    <!-- Kontainer untuk Lampu -->
-    <div class="lamp-container">
-        <div id="lamp1" class="lamp lamp1 off"></div>
-        <div id="lamp2" class="lamp lamp2 off"></div>
-        <div id="lamp3" class="lamp lamp3 off"></div>
-        <div id="lamp4" class="lamp lamp4 off"></div>
-        <div id="lamp5" class="lamp lamp5 off"></div>
-    </div>
+    <h1>Pendeteksi Objek dengan Kamera</h1>
+    <video id="video" autoplay></video>
+    <canvas id="canvas"></canvas>
 
-    <!-- Tombol ON/OFF -->
-    <button id="toggleAllButton" class="button">ON All</button>
-    <!-- Tombol Nyala Satu -->
-    <button id="toggleSingleButton" class="button">Nyala Lampu 1</button>
-    <!-- Tombol Relay/Kedip -->
-    <button id="toggleBlinkButton" class="button">Kedip Lampu 2</button>
-
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/coco-ssd"></script>
     <script>
-        // Ambil elemen lampu dan tombol
-        const lamp1 = document.getElementById('lamp1');
-        const lamp2 = document.getElementById('lamp2');
-        const lamp3 = document.getElementById('lamp3');
-        const lamp4 = document.getElementById('lamp4');
-        const lamp5 = document.getElementById('lamp5');
-        const toggleAllButton = document.getElementById('toggleAllButton');
-        const toggleSingleButton = document.getElementById('toggleSingleButton');
-        const toggleBlinkButton = document.getElementById('toggleBlinkButton');
+        const video = document.getElementById('video');
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d');
 
-        // Status sistem
-        let isAllOn = false;
-        let isSingleOn = false;
-        let isBlinking = false;
-        let blinkInterval;
+        // Mengambil akses ke kamera
+        async function setupCamera() {
+            const stream = await navigator.mediaDevices.getUserMedia({
+                video: true
+            });
+            video.srcObject = stream;
 
-        // Fungsi menyalakan semua lampu
-        function turnOnAllLamps() {
-            lamp1.classList.add('on');
-            lamp2.classList.add('on');
-            lamp3.classList.add('on');
-            lamp4.classList.add('on');
-            lamp5.classList.add('on');
-            lamp1.classList.remove('off');
-            lamp2.classList.remove('off');
-            lamp3.classList.remove('off');
-            lamp4.classList.remove('off');
-            lamp5.classList.remove('off');
+            return new Promise((resolve) => {
+                video.onloadedmetadata = () => {
+                    resolve(video);
+                };
+            });
         }
 
-        // Fungsi mematikan semua lampu
-        function turnOffAllLamps() {
-            lamp1.classList.remove('on'); lamp1.classList.add('off');
-            lamp2.classList.remove('on'); lamp2.classList.add('off');
-            lamp3.classList.remove('on'); lamp3.classList.add('off');
-            lamp4.classList.remove('on'); lamp4.classList.add('off');
-            lamp5.classList.remove('on'); lamp5.classList.add('off');
+        // Menampilkan deteksi objek
+        async function detectObjects() {
+            const model = await cocoSsd.load();
+            console.log("Model loaded");
+
+            // Menyesuaikan ukuran kanvas
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+
+            const detect = async () => {
+                const predictions = await model.detect(video);
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                predictions.forEach(prediction => {
+                    ctx.beginPath();
+                    ctx.rect(...prediction.bbox);
+                    ctx.lineWidth = 2;
+                    ctx.strokeStyle = 'red';
+                    ctx.fillStyle = 'red';
+                    ctx.stroke();
+                    ctx.fillText(
+                        `${prediction.class} (${Math.round(prediction.score * 100)}%)`,
+                        prediction.bbox[0],
+                        prediction.bbox[1] > 10 ? prediction.bbox[1] - 5 : 10
+                    );
+                });
+                requestAnimationFrame(detect);
+            };
+
+            detect();
         }
 
-        // Fungsi toggle semua lampu
-        function toggleAllLamps() {
-            isAllOn = !isAllOn;
-            if (isAllOn) {
-                toggleAllButton.textContent = 'OFF All';
-                turnOnAllLamps();
-            } else {
-                toggleAllButton.textContent = 'ON All';
-                turnOffAllLamps();
-            }
+        // Memulai kamera dan deteksi objek
+        async function main() {
+            await setupCamera();
+            video.play();
+            detectObjects();
         }
 
-        // Fungsi toggle lampu satu
-        function toggleSingleLamp() {
-            isSingleOn = !isSingleOn;
-            if (isSingleOn) {
-                lamp1.classList.add('on');
-                lamp1.classList.remove('off');
-                toggleSingleButton.textContent = 'Matikan Lampu 1';
-            } else {
-                lamp1.classList.remove('on');
-                lamp1.classList.add('off');
-                toggleSingleButton.textContent = 'Nyala Lampu 1';
-            }
-        }
-
-        // Fungsi untuk memulai atau menghentikan kedip lampu 2
-        function toggleBlinkLamp() {
-            isBlinking = !isBlinking;
-            if (isBlinking) {
-                toggleBlinkButton.textContent = 'Matikan Kedip';
-                blinkInterval = setInterval(() => {
-                    lamp2.classList.toggle('on');
-                    lamp2.classList.toggle('off');
-                }, 500); // interval kedip 500 ms
-            } else {
-                toggleBlinkButton.textContent = 'Kedip Lampu 2';
-                clearInterval(blinkInterval);
-                lamp2.classList.remove('on');
-                lamp2.classList.add('off');
-            }
-        }
-
-        // Event listeners untuk tombol
-        toggleAllButton.addEventListener('click', toggleAllLamps);
-        toggleSingleButton.addEventListener('click', toggleSingleLamp);
-        toggleBlinkButton.addEventListener('click', toggleBlinkLamp);
+        main();
     </script>
-
 </body>
 </html>
