@@ -10,6 +10,8 @@
             justify-content: center;
             align-items: center;
             flex-direction: column;
+            margin: 0;
+            padding: 0;
         }
         video {
             width: 640px;
@@ -21,6 +23,21 @@
             top: 0;
             left: 0;
         }
+        .button-container {
+            margin-top: 20px;
+        }
+        .button {
+            padding: 10px 15px;
+            margin: 5px;
+            background-color: #007bff;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        .button:hover {
+            background-color: #0056b3;
+        }
     </style>
 </head>
 <body>
@@ -29,19 +46,32 @@
     <video id="video" autoplay></video>
     <canvas id="canvas"></canvas>
 
+    <div class="button-container">
+        <button id="switchCamera" class="button">Ganti Kamera</button>
+    </div>
+
     <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs"></script>
     <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/coco-ssd"></script>
     <script>
         const video = document.getElementById('video');
         const canvas = document.getElementById('canvas');
         const ctx = canvas.getContext('2d');
+        const switchCameraButton = document.getElementById('switchCamera');
+
+        let currentStream;
+        let isFrontCamera = true;
 
         // Mengambil akses ke kamera
         async function setupCamera() {
-            const stream = await navigator.mediaDevices.getUserMedia({
-                video: true
-            });
-            video.srcObject = stream;
+            const constraints = {
+                video: { facingMode: isFrontCamera ? 'user' : 'environment' }
+            };
+            if (currentStream) {
+                // Stop existing stream
+                currentStream.getTracks().forEach(track => track.stop());
+            }
+            currentStream = await navigator.mediaDevices.getUserMedia(constraints);
+            video.srcObject = currentStream;
 
             return new Promise((resolve) => {
                 video.onloadedmetadata = () => {
@@ -81,6 +111,13 @@
             detect();
         }
 
+        // Fungsi untuk mengubah kamera
+        async function switchCamera() {
+            isFrontCamera = !isFrontCamera; // Ganti status kamera
+            await setupCamera();
+            detectObjects();
+        }
+
         // Memulai kamera dan deteksi objek
         async function main() {
             await setupCamera();
@@ -88,7 +125,10 @@
             detectObjects();
         }
 
+        switchCameraButton.addEventListener('click', switchCamera);
+
         main();
     </script>
+
 </body>
 </html>
