@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Face Detection with Camera</title>
+    <style>
+        /* Gaya dasar untuk video dan kanvas */
+        #video {
+            display: block;
+            margin: 0 auto;
+            width: 640px;
+            height: 480px;
+            background-color: black;
+        }
+        
+        #canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            display: block;
+            margin: 0 auto;
+        }
+        
+        .centered {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            flex-direction: column;
+            margin-top: 20px;
+        }
+        
+        /* Gaya untuk tombol */
+        button {
+            margin: 10px;
+            padding: 10px;
+            background-color: #007bff;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+
+        button:hover {
+            background-color: #0056b3;
+        }
+    </style>
+</head>
+<body>
+
+<div class="centered">
+    <video id="video" autoplay muted></video>
+    <canvas id="canvas" width="640" height="480"></canvas>
+    <button onclick="startDetection()">Start Face Detection</button>
+</div>
+
+<!-- Memuat pustaka face-api.js dari CDN -->
+<script defer src="https://cdn.jsdelivr.net/npm/face-api.js"></script>
+<script>
+    const video = document.getElementById('video');
+    const canvas = document.getElementById('canvas');
+    const context = canvas.getContext('2d');
+    let isDetecting = false;
+
+    // Fungsi untuk memulai akses kamera
+    async function startCamera() {
+        const stream = await navigator.mediaDevices.getUserMedia({ video: {} });
+        video.srcObject = stream;
+    }
+
+    // Memuat model face-api.js
+    async function loadModels() {
+        await faceapi.nets.tinyFaceDetector.loadFromUri('https://cdn.jsdelivr.net/npm/face-api.js/models');
+    }
+
+    // Mulai deteksi wajah
+    async function startDetection() {
+        isDetecting = true;
+        while (isDetecting) {
+            const displaySize = { width: video.width, height: video.height };
+            faceapi.matchDimensions(canvas, displaySize);
+            const detections = await faceapi.detectAllFaces(video, new faceapi.TinyFaceDetectorOptions());
+            const resizedDetections = faceapi.resizeResults(detections, displaySize);
+            context.clearRect(0, 0, canvas.width, canvas.height);
+            faceapi.draw.drawDetections(canvas, resizedDetections);
+            await new Promise((resolve) => setTimeout(resolve, 100)); // jeda 100ms
+        }
+    }
+
+    // Inisialisasi kamera dan model saat halaman dimuat
+    window.addEventListener('load', async () => {
+        await loadModels();
+        await startCamera();
+    });
+</script>
+</body>
+</html>
